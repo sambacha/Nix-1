@@ -12,3 +12,4 @@ scripts/osraw/*.json
 scripts/node_modules
 scripts/package-lock.json
 private
+/out
