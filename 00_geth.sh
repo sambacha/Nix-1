@@ -1,0 +1,1 @@
+geth --allow-insecure-unlock --dev --dev.period 1 --datadir ./testchain --rpc --rpccorsdomain '*' --rpcport 8646 --rpcapi "eth,net,web3,debug" --port 32323 --maxpeers 0 --targetgaslimit 994712388 console
