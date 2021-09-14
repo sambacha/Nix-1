@@ -1,25 +1,8 @@
 pragma solidity ^0.8.0;
 
-// import "hardhat/console.sol";
-
-// ----------------------------------------------------------------------------
-// Nix v0.9.0
-//
-// https://github.com/bokkypoobah/Nix
-//
-// Deployed to
-//
-// SPDX-License-Identifier: MIT
-//
-// Enjoy. And hello, from the past.
-//
-// (c) BokkyPooBah / Bok Consulting Pty Ltd 2021. The MIT Licence.
-// ----------------------------------------------------------------------------
-
-// ----------------------------------------------------------------------------
-// ERC Token Standard #20 Interface
-// https://github.com/ethereum/EIPs/blob/master/EIPS/eip-20-token-standard.md
-// ----------------------------------------------------------------------------
+/* @gg:source
+  name: IERC20Partial
+*/
 interface IERC20Partial {
     function balanceOf(address tokenOwner) external view returns (uint balance);
     function allowance(address tokenOwner, address spender) external view returns (uint remaining);
@@ -27,10 +10,17 @@ interface IERC20Partial {
     function transferFrom(address from, address to, uint tokens) external returns (bool success);
 }
 
+
+/* @gg:source
+  name: IERC165
+*/
 interface IERC165 {
     function supportsInterface(bytes4 interfaceId) external view returns (bool);
 }
 
+/* @gg:source
+  name: IERC721Partial
+*/
 interface IERC721Partial is IERC165 {
     function ownerOf(uint256 tokenId) external view returns (address);
     function balanceOf(address owner) external view returns (uint256 balance);
@@ -38,9 +28,13 @@ interface IERC721Partial is IERC165 {
     function safeTransferFrom(address _from, address _to, uint256 _tokenId) external payable;
 }
 
+/* @gg:source
+  name: ERC721TokenReceiver
+*/
 interface ERC721TokenReceiver {
     function onERC721Received(address _operator, address _from, uint256 _tokenId, bytes memory _data) external returns(bytes4);
 }
+
 
 /// @notice Ownership
 contract Owned {
@@ -65,6 +59,7 @@ contract Owned {
         owner = newOwner;
         newOwner = address(0);
     }
+
 
     event TipsWithdrawn(address indexed token, uint tokens, uint tokenId);
     function withdrawTips(address token, uint tokens, uint tokenId) public onlyOwner {
@@ -117,6 +112,12 @@ contract Nix is Owned, ERC721TokenReceiver {
         return this.onERC721Received.selector;
     }
 
+    
+  /* @gg:handler 
+    actions:
+      - StoreEvent
+      - UpdateField onERC721Received
+  */
     event MakerOrderAdded(bytes32 orderKey, uint orderIndex);
     function makerAddOrder(
         address taker,
@@ -167,6 +168,11 @@ contract Nix is Owned, ERC721TokenReceiver {
         handleTips(integrator);
     }
 
+  /* @gg:handler 
+    actions:
+      - StoreEvent
+      - UpdateField onERC721Received
+  */
     event MakerTokenIdsUpdated(bytes32 orderKey, uint orderIndex);
     function makerUpdateTokenIds(uint orderIndex, uint[] memory tokenIds, address integrator) external payable reentrancyGuard {
         bytes32 orderKey = ordersIndex[orderIndex];
@@ -176,6 +182,13 @@ contract Nix is Owned, ERC721TokenReceiver {
         emit MakerTokenIdsUpdated(orderKey, orderIndex);
         handleTips(integrator);
     }
+
+
+      /* @gg:handler 
+    actions:
+      - StoreEvent
+      - UpdateField onERC721Received
+  */
 
     event MakerOrderUpdated(bytes32 orderKey, uint orderIndex);
     function makerUpdateOrder(uint orderIndex, uint price, uint64 expiry, int64 tradeMaxAdjustment, address integrator) external payable reentrancyGuard {
@@ -198,6 +211,12 @@ contract Nix is Owned, ERC721TokenReceiver {
         emit MakerOrderUpdated(orderKey, orderIndex);
         handleTips(integrator);
     }
+
+      /* @gg:handler 
+    actions:
+      - StoreEvent
+      - UpdateField onERC721Received
+  */
 
     event TakerOrderExecuted(bytes32 orderKey, uint orderIndex);
     function takerExecuteOrder(uint orderIndex, uint[] memory tokenIds, uint totalPrice, address integrator) external payable reentrancyGuard {
@@ -272,11 +291,15 @@ contract Nix is Owned, ERC721TokenReceiver {
         emit TakerOrderExecuted(orderKey, orderIndex);
         handleTips(integrator);
     }
-
+  /* @gg:field */
     function ordersLength() public view returns (uint) {
         return ordersIndex.length;
     }
+      /* @gg:field
+    name: speedOfLight
+  */
     enum OrderStatus { Executable, Expired, Maxxed, MakerNoWeth, MakerNoWethAllowance, MakerNoToken, MakerNotApprovedNix, UnknownError }
+      /* @gg:field */
     function orderStatus(uint i) private view returns (OrderStatus) {
         bytes32 orderKey = ordersIndex[i];
         Order memory order = orders[orderKey];
@@ -341,7 +364,8 @@ contract Nix is Owned, ERC721TokenReceiver {
         }
         return OrderStatus.Executable;
     }
-
+  /* @gg:field */
+                                                                                                                                                                                                                                                                                                
     function getOrders(
         uint[] memory orderIndices
     ) public view returns (
@@ -390,6 +414,7 @@ contract Nix is Owned, ERC721TokenReceiver {
     }
 
     event ThankYou(uint tip);
+      /* @gg:field */
     function handleTips(address integrator) private {
         if (msg.value > 0) {
             uint integratorTip;
