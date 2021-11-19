@@ -1,6 +1,8 @@
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
-const ORDERTYPE = { BUYANY: 0, SELLANY: 1, BUYALL: 2, SELLALL: 3 };
-const ORDERTYPESTRING = [ "BuyAny", "SellAny", "BuyAll", "SellAll" ];
+const BUYORSELL = { BUY: 0, SELL: 1 };
+const ANYORALL = { ANY: 0, ALL: 1 };
+const BUYORSELLSTRING = [ "Buy", "Sell" ];
+const ANYORALLSTRING = [ "Any", "All" ];
 const ORDERSTATUSSTRING = [ "Executable", "Expired", "Maxxed", "MakerNoWeth", "MakerNoWethAllowance", "MakerNoToken", "MakerNotApprovedNix", "UnknownError" ];
 
 const { BigNumber } = require("ethers");
@@ -15,8 +17,11 @@ class Data {
     this.contracts = [];
 
     this.weth = null;
+    this.royaltyEngine = null;
     this.nftA = null;
+    this.nftB = null;
     this.nix = null;
+    this.nixHelper = null;
 
     this.gasPrice = ethers.utils.parseUnits("84", "gwei");
     this.ethUsd = ethers.utils.parseUnits("3233.35", 18);
@@ -25,8 +30,8 @@ class Data {
   }
 
   async init() {
-    [this.deployerSigner, this.maker0Signer, this.maker1Signer, this.taker0Signer, this.taker1Signer, this.integratorSigner] = await ethers.getSigners();
-    [this.deployer, this.maker0, this.maker1, this.taker0, this.taker1, this.integrator] = await Promise.all([this.deployerSigner.getAddress(), this.maker0Signer.getAddress(), this.maker1Signer.getAddress(), this.taker0Signer.getAddress(), this.taker1Signer.getAddress(), this.integratorSigner.getAddress()]);
+    [this.deployerSigner, this.maker0Signer, this.maker1Signer, this.taker0Signer, this.taker1Signer, this.royalty1Signer, this.royalty2Signer, this.integratorSigner] = await ethers.getSigners();
+    [this.deployer, this.maker0, this.maker1, this.taker0, this.taker1, this.royalty1, this.royalty2, this.integrator] = await Promise.all([this.deployerSigner.getAddress(), this.maker0Signer.getAddress(), this.maker1Signer.getAddress(), this.taker0Signer.getAddress(), this.taker1Signer.getAddress(), this.royalty1Signer.getAddress(), this.royalty2Signer.getAddress(), this.integratorSigner.getAddress()]);
 
     this.addAccount("0x0000000000000000000000000000000000000000", "null");
     this.addAccount(this.deployer, "deployer");
@@ -34,6 +39,8 @@ class Data {
     this.addAccount(this.maker1, "maker1");
     this.addAccount(this.taker0, "taker0");
     this.addAccount(this.taker1, "taker1");
+    this.addAccount(this.royalty1, "royalty1");
+    this.addAccount(this.royalty2, "royalty2");
     this.addAccount(this.integrator, "integrator");
     this.baseBlock = await ethers.provider.getBlockNumber();
   }
@@ -130,79 +137,136 @@ class Data {
     this.weth = weth;
     this.addContract(weth, "WETH");
   }
+  async setRoyaltyEngine(royaltyEngine) {
+    this.royaltyEngine = royaltyEngine;
+    this.addContract(royaltyEngine, "RoyaltyEngine");
+  }
   async setNFTA(nftA) {
     this.nftA = nftA;
     this.addContract(nftA, "NFTA");
+  }
+  async setNFTB(nftB) {
+    this.nftB = nftB;
+    this.addContract(nftB, "NFTB");
   }
   async setNix(nix) {
     this.nix = nix;
     this.addContract(nix, "Nix");
   }
+  async setNixHelper(nixHelper) {
+    this.nixHelper = nixHelper;
+    this.addContract(nixHelper, "NixHelper");
+  }
 
   async printState(prefix) {
+    console.log("        --- " + prefix + " ---");
+    let totalSupplyA = 0;
+    let totalSupplyB = 0;
+    const ownersA = {};
+    const ownersB = {};
     if (this.nftA != null) {
-      const totalSupply = await this.nftA.totalSupply();
-      console.log("        --- " + prefix + " ---");
-      const owners = {};
-      for (let i = 0; i < totalSupply; i++) {
+      totalSupplyA = await this.nftA.totalSupply();
+      for (let i = 0; i < totalSupplyA; i++) {
         const ownerOf = await this.nftA.ownerOf(i);
-        if (!owners[ownerOf]) {
-          owners[ownerOf] = [];
+        if (!ownersA[ownerOf]) {
+          ownersA[ownerOf] = [];
         }
-        owners[ownerOf].push(i);
+        ownersA[ownerOf].push(i);
       }
-      console.log("          Account                               ETH                 WETH " + await this.nftA.symbol() + " (totalSupply: " + totalSupply + ")");
-      console.log("          -------------------- -------------------- -------------------- -------------------------");
-      const checkAccounts = [this.deployer, this.maker0, this.maker1, this.taker0, this.taker1, this.integrator];
-      if (this.nix != null) {
-        checkAccounts.push(this.nix.address);
-      }
-      for (let i = 0; i < checkAccounts.length; i++) {
-        const ownerData = owners[checkAccounts[i]] || [];
-        const balance = await ethers.provider.getBalance(checkAccounts[i]);
-        const wethBalance = this.weth == null ? 0 : await this.weth.balanceOf(checkAccounts[i]);
-        console.log("          " + this.padRight(this.getShortAccountName(checkAccounts[i]), 20) + " " + this.padLeft(ethers.utils.formatEther(balance), 20) + " " + this.padLeft(ethers.utils.formatEther(wethBalance), 20) + " " + JSON.stringify(ownerData) + " ");
-      }
-      console.log();
     }
+    if (this.nftB != null) {
+      totalSupplyB = await this.nftB.totalSupply();
+      for (let i = 0; i < totalSupplyB; i++) {
+        const ownerOf = await this.nftB.ownerOf(i);
+        if (!ownersB[ownerOf]) {
+          ownersB[ownerOf] = [];
+        }
+        ownersB[ownerOf].push(i);
+      }
+    }
+    console.log("          Account                               ETH                 WETH " + this.padRight(await this.nftA.symbol() + " (" + totalSupplyA + ")", 26) + this.padRight(await this.nftB.symbol() + " (" + totalSupplyB + ")", 26) );
+    console.log("          -------------------- -------------------- -------------------- ------------------------- -------------------------");
+    const checkAccounts = [this.deployer, this.maker0, this.maker1, this.taker0, this.taker1, this.royalty1, this.royalty2, this.integrator];
+    if (this.nix != null) {
+      checkAccounts.push(this.nix.address);
+    }
+    if (this.nixHelper != null) {
+      checkAccounts.push(this.nixHelper.address);
+    }
+    for (let i = 0; i < checkAccounts.length; i++) {
+      const ownerDataA = ownersA[checkAccounts[i]] || [];
+      const ownerDataB = ownersB[checkAccounts[i]] || [];
+      const balance = await ethers.provider.getBalance(checkAccounts[i]);
+      const wethBalance = this.weth == null ? 0 : await this.weth.balanceOf(checkAccounts[i]);
+      console.log("          " + this.padRight(this.getShortAccountName(checkAccounts[i]), 20) + " " + this.padLeft(ethers.utils.formatEther(balance), 20) + " " + this.padLeft(ethers.utils.formatEther(wethBalance), 20) + " " + this.padRight(JSON.stringify(ownerDataA), 25) + " " + JSON.stringify(ownerDataB));
+    }
+    console.log();
 
     if (this.nix != null) {
-      const ordersLength = await this.nix.ordersLength();
-      if (ordersLength > 0) {
-        console.log("            # Maker         Taker        Token                       Price Type     Expiry                   Tx Count   Tx Max Status               Key        TokenIds");
-        console.log("          --- ------------- ------------ ------------ -------------------- -------- ------------------------ -------- -------- -------------------- ---------- -----------------------");
-        const orderIndices = [];
-        for (let i = 0; i < ordersLength; i++) {
-          orderIndices.push(i);
-        }
-        const orders = await this.nix.getOrders(orderIndices);
-        for (let i = 0; i < ordersLength; i++) {
-          const orderKey = orders[0][i];
-          const maker = orders[1][i];
-          const taker = orders[2][i];
-          const token = orders[3][i];
-          const tokenIds = orders[4][i];
-          const price = orders[5][i];
-          const data = orders[6][i];
-          const orderType = data[0];
-          const expiry = data[1];
-          const expiryString = expiry == 0 ? "(none)" : new Date(expiry * 1000).toISOString();
-          const tradeCount = data[2];
-          const tradeMax = data[3];
-          const orderStatus = data[4];
-          const orderStatusString = ORDERSTATUSSTRING[orderStatus];
-          console.log("          " + this.padLeft(i, 3) + " " + this.padRight(this.getShortAccountName(maker), 12) + " " +
-            this.padRight(this.getShortAccountName(taker), 12) + " " + this.padRight(this.getShortAccountName(token), 12) + " " +
-            this.padLeft(ethers.utils.formatEther(price), 20) + " " + this.padRight(ORDERTYPESTRING[orderType], 8) + " " +
-            this.padRight(expiryString, 24) + " " +
-            this.padLeft(tradeCount.toString(), 8) + " " +
-            this.padLeft(tradeMax.toString(), 8) + " " +
-            this.padRight(orderStatusString.toString(), 20) + " " +
-            orderKey.substring(0, 10) + " " +
-            JSON.stringify(tokenIds.map((x) => { return parseInt(x.toString()); })));
+      const tokensLength = await this.nix.tokensLength();
+      if (tokensLength > 0) {
+        var tokensIndices = [...Array(parseInt(tokensLength)).keys()];
+        const tokens = await this.nixHelper.getTokens(tokensIndices);
+        for (let i = 0; i < tokens[0].length; i++) {
+          const token = tokens[0][i];
+          const ordersLength = tokens[1][i];
+          const executed = tokens[2][i];
+          const volumeToken = tokens[3][i];
+          const volumeWeth = tokens[4][i];
+          console.log("          Orders for " + this.getShortAccountName(token) + ", ordersLength: " + ordersLength + ", executed: " + executed + ", volumeToken: " + volumeToken + ", volumeWeth: " + ethers.utils.formatEther(volumeWeth));
+          console.log("              # Maker          Taker                         Price B/S  Any/All Expiry                   Tx Count   Tx Max  RoyFac% Status               TokenIds");
+          console.log("            --- -------------- -------------- -------------------- ---- ------- ------------------------ -------- -------- -------- -------------------- -----------------------");
+          var orderIndices = [...Array(parseInt(ordersLength)).keys()];
+          const orders = await this.nixHelper.getOrders(token, orderIndices);
+          for (let i = 0; i < ordersLength; i++) {
+            const maker = orders[0][i];
+            const taker = orders[1][i];
+            const tokenIds = orders[2][i];
+            const price = orders[3][i];
+            const data = orders[4][i];
+            const buyOrSell = data[0];
+            const anyOrAll = data[1];
+            const expiry = data[2];
+            const expiryString = expiry == 0 ? "(none)" : new Date(expiry * 1000).toISOString();
+            const tradeCount = data[3];
+            const tradeMax = data[4];
+            const royaltyFactor = data[5];
+            const orderStatus = data[6];
+            const orderStatusString = ORDERSTATUSSTRING[orderStatus];
+            console.log("            " + this.padLeft(i, 3) + " " +
+              this.padRight(this.getShortAccountName(maker), 14) + " " +
+              this.padRight(this.getShortAccountName(taker), 14) + " " +
+              this.padLeft(ethers.utils.formatEther(price), 20) + " " +
+              this.padRight(BUYORSELLSTRING[buyOrSell], 4) + " " +
+              this.padRight(ANYORALLSTRING[anyOrAll], 7) + " " +
+              this.padRight(expiryString, 24) + " " +
+              this.padLeft(tradeCount.toString(), 8) + " " +
+              this.padLeft(tradeMax.toString(), 8) + " " +
+              this.padLeft(royaltyFactor.toString(), 8) + " " +
+              this.padRight(orderStatusString.toString(), 20) + " " +
+              JSON.stringify(tokenIds.map((x) => { return parseInt(x.toString()); })));
+          }
+          console.log();
         }
       }
-      console.log();
+    }
+
+    const tradesLength = await this.nix.tradesLength();
+    if (tradesLength > 0) {
+      console.log("tradesLength: " + tradesLength);
+      // if (ordersLength > 0) {
+      //   console.log("            # Maker         Taker        Token                       Price Type     Expiry                   Tx Count   Tx Max Status               Key        TokenIds");
+      //   console.log("          --- ------------- ------------ ------------ -------------------- -------- ------------------------ -------- -------- -------------------- ---------- -----------------------");
+      const tradeIndices = [...Array(parseInt(tradesLength)).keys()];
+      const trades = await this.nixHelper.getTrades(tradeIndices);
+      console.log("trades: " + JSON.stringify(trades.map((x) => { return x.toString(); })));
+      // //   const orders = await this.nix.getOrders(tradeIndices);
+      //
+      //
+      //   for (let i = 0; i < tradesLength; i++) {
+      //     console.log("trade: " + JSON.stringify(trade));
+      //   }
+      // }
     }
   }
 }
@@ -210,7 +274,9 @@ class Data {
 /* Exporting the module */
 module.exports = {
     ZERO_ADDRESS,
-    ORDERTYPE,
-    ORDERTYPESTRING,
+    BUYORSELL,
+    ANYORALL,
+    BUYORSELLSTRING,
+    ANYORALLSTRING,
     Data
 }

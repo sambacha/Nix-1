@@ -1,0 +1,85 @@
+name: static
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'contracts/**'
+      - '.github/workflows/slither.yaml'
+      - "**.py"
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'contracts/**'
+      - '.github/workflows/slither.yaml'
+
+
+env:
+  CI: true
+  COMMIT_SHA: ${{ github.event.pull_request.head.sha }}
+  PULL_NUMBER: ${{ github.event.pull_request.number }}
+  RUN_ID: ${{ github.run_id }}
+  FORCE_COLOR: 2
+
+jobs:
+  slither:
+    runs-on: ubuntu-latest
+#    outputs:
+#      SLITHER_COVERAGE: ${{ steps.slither-analysis.outputs.SLITHER_COVERAGE }}
+      
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ["14.x"]
+        os: ["ubuntu-latest"]
+    steps:
+      - uses: actions/checkout@v2
+      - name: Nodejs 14.x
+        uses: actions/setup-node@v2
+        with:
+          node-version: "14.x"
+          check-latest: true
+          always-auth: true
+          registry-url: https://registry.npmjs.org
+#          cache: 'yarn' dont cache for this workflow
+
+      - name: Install Hardhat
+        id: compile
+        run: |
+          yarn install
+          npx hardhat compile
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.9
+
+      - name: Install Slither
+        run: pip3 install slither-analyzer
+      - name: Run analysis
+        id: analysis
+        shell: bash
+        run: |
+          slither . --print human-summary --exclude-dependencies --compile-force-framework hardhat
+      - name: Contract summary of static ananlysis
+        run: |
+          echo "Running slither"
+          slither . --print contract-summary --exclude-dependencies --compile-force-framework hardhat
+      - name: Function summary
+        id: functions
+        run: |
+          slither . --print function-summary --exclude-dependencies --compile-force-framework hardhat
+      - name: Data dependency
+        id: data
+        run: |
+          slither . --print data-dependency --exclude-dependencies --compile-force-framework hardhat
+      - name: Inheritance
+        run: |
+          slither . --print inheritance --exclude-dependencies --compile-force-framework hardhat
+      - name: Save the result as a SARIF json file
+        run: |
+            slither . --json - --sarif results.sarif --compile-force-framework hardhat
+            python3 report.py
+      - uses: github/codeql-action/upload-sarif@v1
+        with:
+          # Path to SARIF file relative to the root of the repository
+          sarif_file: data/test.sarif
