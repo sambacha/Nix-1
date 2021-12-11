@@ -3,7 +3,7 @@ const BUYORSELL = { BUY: 0, SELL: 1 };
 const ANYORALL = { ANY: 0, ALL: 1 };
 const BUYORSELLSTRING = [ "Buy", "Sell" ];
 const ANYORALLSTRING = [ "Any", "All" ];
-const ORDERSTATUSSTRING = [ "Executable", "Expired", "Maxxed", "MakerNoWeth", "MakerNoWethAllowance", "MakerNoToken", "MakerNotApprovedNix", "UnknownError" ];
+const ORDERSTATUSSTRING = [ "Executable", "Disabled", "Expired", "Maxxed", "MakerNoWeth", "MakerNoWethAllowance", "MakerNoToken", "MakerNotApprovedNix", "UnknownError" ];
 
 const { BigNumber } = require("ethers");
 const util = require('util');
@@ -24,7 +24,7 @@ class Data {
     this.nixHelper = null;
 
     this.gasPrice = ethers.utils.parseUnits("84", "gwei");
-    this.ethUsd = ethers.utils.parseUnits("3233.35", 18);
+    this.ethUsd = ethers.utils.parseUnits("4360.35", 18);
 
     this.verbose = false;
   }
