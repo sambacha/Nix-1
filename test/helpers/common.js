@@ -89,7 +89,7 @@ class Data {
             if (a.type == 'address') {
               result = result + this.getShortAccountName(data.args[a.name].toString());
             } else if (a.type == 'uint256' || a.type == 'uint128') {
-              if (a.name == 'tokens' || a.name == 'amount' || a.name == 'balance' || a.name == 'value') {
+              if (a.name == 'tokens' || a.name == 'amount' || a.name == 'balance' || a.name == 'value' || a.name == 'tip') {
                 result = result + ethers.utils.formatUnits(data.args[a.name], 18);
               } else {
                 result = result + data.args[a.name].toString();
@@ -203,7 +203,7 @@ class Data {
     console.log();
 
     if (this.nix != null) {
-      const tokensLength = await this.nix.tokensLength();
+      const tokensLength = (await this.nix.getLengths())[0];
       if (tokensLength > 0) {
         var tokensIndices = [...Array(parseInt(tokensLength)).keys()];
         const tokens = await this.nixHelper.getTokens(tokensIndices);
@@ -251,7 +251,7 @@ class Data {
       }
     }
 
-    const tradesLength = await this.nix.tradesLength();
+    const tradesLength = (await this.nix.getLengths())[1];
     if (tradesLength > 0) {
       console.log("tradesLength: " + tradesLength);
       // if (ordersLength > 0) {
