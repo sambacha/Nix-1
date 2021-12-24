@@ -13,6 +13,7 @@
     "compile": "npx hardhat compile",
     "coverage": "npx hardhat coverage",
     "test": "npx hardhat test",
+     "compile-contract-types": "npx typechain --target ethers-v5 --out-dir './contracts/types' './contracts/*.json'",
     "lint": "npx gts lint",
     "format": "npx prettier --config prettier.config.js --write .",
     "clean": "npx gts clean",
