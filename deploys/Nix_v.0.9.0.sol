@@ -1,13 +1,17 @@
+/**
+ *Submitted for verification at Etherscan.io on 2022-01-02
+*/
+
 pragma solidity ^0.8.0;
 
 // ----------------------------------------------------------------------------
-// Nix v0.8.5 testing to be deployed
+// Nix v0.9.0-alpha to be deployed
 //
 // https://github.com/bokkypoobah/Nix
 //
 // Deployed to Rinkeby
-// - Nix
-// - NixHelper
+// - Nix 0xFF0000ffe3475C081E541a1baAbc5DB7eA6e0353
+// - NixHelper 0x76f910c835b5a06CD465657f1a71153e2B6B2C0B
 //
 // SPDX-License-Identifier: MIT
 //
